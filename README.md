@@ -5,4 +5,6 @@ This block allows users to select one or more records in a grid view, and then d
 
 1. Create a custom block
 2. Select "Remix from Github"
-3. Paste this repo url: ``
+3. Paste this repo url: `https://github.com/thekamillionaire/scheduler`
+4. Install FullCallender.io by running `npm install --save @fullcalendar/react @fullcalendar/daygrid @fullcalendar/timegrid @fullcalendar/interaction`
+5. Install Moment.js by running `npm install moment --save`
