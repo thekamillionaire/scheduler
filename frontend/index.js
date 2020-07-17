@@ -330,7 +330,6 @@ function SettingsMenu(props) {
                         <FormField label="Table" description="The table for the records being reserved" marginY={2}>
                             <TablePickerSynced 
                                 globalConfigKey={assetsTableId}
-                                globalConfigKey={assetsTableId}
                                 onChange={resetAssetFields}
                             />
                         </FormField>
