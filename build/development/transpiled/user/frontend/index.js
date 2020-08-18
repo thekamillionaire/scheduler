@@ -30,10 +30,6 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
-function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { Promise.resolve(value).then(_next, _throw); } }
-
-function _asyncToGenerator(fn) { return function () { var self = this, args = arguments; return new Promise(function (resolve, reject) { var gen = fn.apply(self, args); function _next(value) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value); } function _throw(err) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err); } _next(undefined); }); }; }
-
 function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _unsupportedIterableToArray(arr) || _nonIterableSpread(); }
 
 function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
@@ -41,6 +37,10 @@ function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread n
 function _iterableToArray(iter) { if (typeof Symbol !== "undefined" && Symbol.iterator in Object(iter)) return Array.from(iter); }
 
 function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) return _arrayLikeToArray(arr); }
+
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { Promise.resolve(value).then(_next, _throw); } }
+
+function _asyncToGenerator(fn) { return function () { var self = this, args = arguments; return new Promise(function (resolve, reject) { var gen = fn.apply(self, args); function _next(value) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value); } function _throw(err) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err); } _next(undefined); }); }; }
 
 function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest(); }
 
@@ -58,44 +58,31 @@ function SchedulerBlock() {
   var base = (0, _ui.useBase)();
   var globalConfig = (0, _ui.useGlobalConfig)();
   var GlobalConfigKeys = {
-    ASSETS_TABLE_ID: "assetsTableId",
-    ASSETS_VIEW_ID: "assetsViewId",
-    ASSETS_RESERVATIONS_LINK_FIELD_ID: "assetsReservationsLinkFieldId",
-    RESERVATIONS_TABLE_ID: "reservationsTableId",
+    RESOURCES_TABLE_ID: "resourcesTableId",
+    RESOURCES_VIEW_ID: "resourcesViewId",
+    RESOURCES_RESERVATIONS_LINK_FIELD_ID: "resourcesReservationsLinkFieldId",
     RESERVATIONS_START_FIELD_ID: "reservationsStartFieldId",
     RESERVATIONS_END_FIELD_ID: "reservationsEndFieldId",
     RECORD_COLOR: "recordColor"
   };
-  (0, _ui.useLoadable)(_blocks.cursor);
-  (0, _ui.useWatchable)(_blocks.cursor, ['activeViewId']); // Global Config Keys (Settings)
+  (0, _ui.useLoadable)(_blocks.cursor); // Global Config Keys (Settings)
 
-  var assetsTableId = globalConfig.get(GlobalConfigKeys.ASSETS_TABLE_ID);
-  var assetsViewId = globalConfig.get(GlobalConfigKeys.ASSETS_VIEW_ID);
-  var assetsReservationsLinkFieldId = globalConfig.get(GlobalConfigKeys.ASSETS_RESERVATIONS_LINK_FIELD_ID);
-  var reservationsTableId = globalConfig.get(GlobalConfigKeys.RESERVATIONS_TABLE_ID);
+  var resourcesTableId = globalConfig.get(GlobalConfigKeys.RESOURCES_TABLE_ID);
+  var resourcesViewId = globalConfig.get(GlobalConfigKeys.RESOURCES_VIEW_ID);
+  var resourcesReservationsLinkFieldId = globalConfig.get(GlobalConfigKeys.RESOURCES_RESERVATIONS_LINK_FIELD_ID);
   var reservationsStartFieldId = globalConfig.get(GlobalConfigKeys.RESERVATIONS_START_FIELD_ID);
   var reservationsEndFieldId = globalConfig.get(GlobalConfigKeys.RESERVATIONS_END_FIELD_ID);
-  var recordColor = globalConfig.get(GlobalConfigKeys.RECORD_COLOR); // Check if all settings options have values
+  var recordColor = globalConfig.get(GlobalConfigKeys.RECORD_COLOR); // Resources
 
-  var initialSetupDone = assetsTableId && assetsViewId && assetsReservationsLinkFieldId && reservationsTableId && reservationsStartFieldId && reservationsEndFieldId && recordColor ? true : false; // Enable the settings button
+  var resourcesTable = base.getTableByIdIfExists(resourcesTableId);
+  var resourcesView = resourcesTable ? resourcesTable.getViewByIdIfExists(resourcesViewId) : null;
+  var resources = (0, _ui.useRecords)(resourcesView);
+  var resourcesReservationsLinkField = resourcesTable ? resourcesTable.getFieldIfExists(resourcesReservationsLinkFieldId) : null; // Reservations
 
-  var _useState = (0, _react.useState)(!initialSetupDone),
-      _useState2 = _slicedToArray(_useState, 2),
-      isShowingSettings = _useState2[0],
-      setIsShowingSettings = _useState2[1];
-
-  (0, _ui.useSettingsButton)(function () {
-    initialSetupDone && setIsShowingSettings(!isShowingSettings);
-  }); // Assets
-
-  var assetsTable = base.getTableByIdIfExists(assetsTableId);
-  var assetsView = assetsTable ? assetsTable.getViewByIdIfExists(assetsViewId) : null;
-  var assets = (0, _ui.useRecords)(assetsView);
-  var assetsReservationsLinkField = assetsTable ? assetsTable.getFieldIfExists(assetsReservationsLinkFieldId) : null; // Reservations
-
+  var reservationsTableId = resourcesReservationsLinkField && resourcesReservationsLinkField.type == "multipleRecordLinks" ? resourcesReservationsLinkField.options.linkedTableId : null;
   var reservationsTable = base.getTableByIdIfExists(reservationsTableId);
   var reservations = (0, _ui.useRecords)(reservationsTable);
-  var reservationsAssetsLinkFieldId = assetsReservationsLinkField ? assetsReservationsLinkField.options.inverseLinkFieldId : null; // This block is designed to work only if the start and end date fields are the same field type (either date or dateTime)
+  var reservationsResourcesLinkFieldId = resourcesReservationsLinkField && resourcesReservationsLinkField.type == "multipleRecordLinks" ? resourcesReservationsLinkField.options.inverseLinkFieldId : null; // This block is designed to work only if the start and end date fields are the same field type (either date or dateTime)
 
   var reservationsStartField = reservationsTable ? reservationsTable.getFieldIfExists(reservationsStartFieldId) : null;
   var reservationsStartFieldMode = reservationsStartField ? reservationsStartField.type : null;
@@ -103,7 +90,18 @@ function SchedulerBlock() {
   var reservationsEndFieldMode = reservationsEndField ? reservationsEndField.type : null;
   var dateModesMatch = reservationsStartFieldMode === reservationsEndFieldMode ? true : false; // The dateMode (either date or dateTime will determine if the displayed calendar will have timeslots, or if it will only allow all-day events)
 
-  var dateMode = dateModesMatch ? reservationsStartFieldMode : null; // Set the initial start and end dates to empty
+  var dateMode = dateModesMatch ? reservationsStartFieldMode : null; // Check if all settings options have values
+
+  var initialSetupDone = resourcesTable && resourcesView && resourcesReservationsLinkField && reservationsTable && reservationsStartField && reservationsEndField && recordColor ? true : false; // Enable the settings button
+
+  var _useState = (0, _react.useState)(!initialSetupDone),
+      _useState2 = _slicedToArray(_useState, 2),
+      isShowingSettings = _useState2[0],
+      setIsShowingSettings = _useState2[1];
+
+  (0, _ui.useSettingsButton)(function () {
+    setIsShowingSettings(!isShowingSettings);
+  }); // Set the initial start and end dates to empty
 
   var _useState3 = (0, _react.useState)(''),
       _useState4 = _slicedToArray(_useState3, 2),
@@ -113,26 +111,109 @@ function SchedulerBlock() {
   var _useState5 = (0, _react.useState)(''),
       _useState6 = _slicedToArray(_useState5, 2),
       endTime = _useState6[0],
-      setEndTime = _useState6[1]; // Get the record IDs of the currently selected records
+      setEndTime = _useState6[1]; // Allow users to select records from within the block
 
+
+  var _useState7 = (0, _react.useState)([]),
+      _useState8 = _slicedToArray(_useState7, 2),
+      addedResourcesIds = _useState8[0],
+      setAddedResourcesIds = _useState8[1];
+
+  function addToSelected() {
+    return _addToSelected.apply(this, arguments);
+  } // Get the record IDs of the currently selected records
+
+
+  function _addToSelected() {
+    _addToSelected = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee() {
+      var recordA, current;
+      return regeneratorRuntime.wrap(function _callee$(_context) {
+        while (1) {
+          switch (_context.prev = _context.next) {
+            case 0:
+              _context.next = 2;
+              return (0, _ui.expandRecordPickerAsync)(resources ? resources.filter(function (record) {
+                return !selectedResourcesIdsSet.has(record.id);
+              }) : resources);
+
+            case 2:
+              recordA = _context.sent;
+
+              if (recordA) {
+                current = [].concat(_toConsumableArray(addedResourcesIds), _toConsumableArray(cursorResourcesIdsSet));
+                current.push(recordA.id);
+                setAddedResourcesIds(new Set(current));
+              }
+
+            case 4:
+            case "end":
+              return _context.stop();
+          }
+        }
+      }, _callee);
+    }));
+    return _addToSelected.apply(this, arguments);
+  }
 
   (0, _ui.useWatchable)(_blocks.cursor, 'selectedRecordIds', function () {
     setStartTime('');
     setEndTime('');
-  }); // Get the currently selected record models from the Assets table
+    setAddedResourcesIds([]);
+  }); // Get the currently selected record models from the Resources table
 
-  var selectedAssetsIdsSet = new Set(_blocks.cursor.selectedRecordIds);
-  var selectedAssets = assets ? assets.filter(function (record) {
-    return selectedAssetsIdsSet.has(record.id);
-  }) : []; // Get the selected asset records in a format to be passed into a multiple record links field
+  var cursorResourcesIdsSet = new Set(_blocks.cursor.selectedRecordIds);
+  var selectedResourcesIdsSet = new Set(_toConsumableArray(addedResourcesIds).length ? _toConsumableArray(addedResourcesIds) : _toConsumableArray(cursorResourcesIdsSet));
 
-  var selectedAssetsObjects = selectedAssets.map(function (asset) {
+  function removeFromSelected() {
+    return _removeFromSelected.apply(this, arguments);
+  }
+
+  function _removeFromSelected() {
+    _removeFromSelected = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee2() {
+      var recordA;
+      return regeneratorRuntime.wrap(function _callee2$(_context2) {
+        while (1) {
+          switch (_context2.prev = _context2.next) {
+            case 0:
+              _context2.next = 2;
+              return (0, _ui.expandRecordPickerAsync)(resources ? resources.filter(function (record) {
+                return selectedResourcesIdsSet.has(record.id);
+              }) : resources);
+
+            case 2:
+              recordA = _context2.sent;
+
+              if (recordA) {
+                setAddedResourcesIds(new Set(_toConsumableArray(selectedResourcesIdsSet).filter(function (id) {
+                  return id != recordA.id;
+                })));
+              }
+
+            case 4:
+            case "end":
+              return _context2.stop();
+          }
+        }
+      }, _callee2);
+    }));
+    return _removeFromSelected.apply(this, arguments);
+  }
+
+  var unselectedResourceCount = resources ? resources.length - _toConsumableArray(selectedResourcesIdsSet).length : 0;
+  var selectedResources = resources ? resources.filter(function (record) {
+    return selectedResourcesIdsSet.has(record.id);
+  }) : []; // Get the selected resource records in a format to be passed into a multiple linked records field
+
+  var selectedResourcesObjects = selectedResources.map(function (resource) {
     return {
-      id: asset.id
+      id: resource.id
     };
   }); // Count the number of currently selected records
 
-  var selectedAssetsCount = selectedAssets.length; // Display the settings module if setup is required
+  var selectedResourcesCount = selectedResources.length;
+  var headerValue = selectedResourcesCount > 0 ? "[" + selectedResourcesCount + "]: " + selectedResources.map(function (x) {
+    return x.name;
+  }).join(", ") : "Click the + button or select records in the " + (resourcesView ? resourcesView.name : "appropriate") + " view"; // Display the settings module if setup is required
 
   if (isShowingSettings || !dateModesMatch) {
     return /*#__PURE__*/_react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/_react.default.createElement(BlockContainer, null, /*#__PURE__*/_react.default.createElement(SettingsMenu, {
@@ -146,10 +227,41 @@ function SchedulerBlock() {
       }
     })));
   } // If the user is on the view chosen in the settings module, and if the user has selected at least one record, run the Scheduler
-  else if (_blocks.cursor.activeViewId == assetsViewId && _blocks.cursor.selectedRecordIds.length > 0) {
-      return /*#__PURE__*/_react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/_react.default.createElement(BlockContainer, null, /*#__PURE__*/_react.default.createElement(DateRangeSelector, {
-        selectedAssets: selectedAssets,
-        assetsReservationsLinkFieldId: assetsReservationsLinkFieldId,
+  else {
+      return /*#__PURE__*/_react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/_react.default.createElement(BlockContainer, null, /*#__PURE__*/_react.default.createElement(_ui.Box, {
+        display: "flex",
+        paddingBottom: 3,
+        borderBottom: "thick",
+        marginBottom: 3,
+        alignItems: "flex-end"
+      }, /*#__PURE__*/_react.default.createElement(_ui.FormField, {
+        label: "Selected resource(s)",
+        margin: "0"
+      }, /*#__PURE__*/_react.default.createElement(_ui.Input, {
+        size: "large",
+        value: headerValue,
+        disabled: true,
+        className: "truncateText",
+        style: {
+          opacity: 0.75
+        }
+      })), /*#__PURE__*/_react.default.createElement(_ui.Button, {
+        onClick: addToSelected,
+        marginLeft: 2,
+        icon: "plus",
+        variant: "primary",
+        "aria-label": "Add to selected resources",
+        disabled: unselectedResourceCount > 0 ? false : true
+      }), /*#__PURE__*/_react.default.createElement(_ui.Button, {
+        onClick: removeFromSelected,
+        marginLeft: 2,
+        icon: "minus",
+        variant: "danger",
+        "aria-label": "Remove from selected resources",
+        disabled: selectedResourcesCount > 0 ? false : true
+      })), /*#__PURE__*/_react.default.createElement(DateRangeSelector, {
+        selectedResources: selectedResources,
+        resourcesReservationsLinkFieldId: resourcesReservationsLinkFieldId,
         reservationsTable: reservationsTable,
         reservationsStartFieldId: reservationsStartFieldId,
         reservationsEndFieldId: reservationsEndFieldId,
@@ -160,60 +272,25 @@ function SchedulerBlock() {
         endTime: endTime,
         recordColor: recordColor
       }), /*#__PURE__*/_react.default.createElement(ScheduleButton, {
+        initialSetupDone: initialSetupDone,
         table: reservationsTable,
-        linkField: reservationsAssetsLinkFieldId,
+        linkField: reservationsResourcesLinkFieldId,
         startField: reservationsStartFieldId,
         endField: reservationsEndFieldId,
         setStartTime: setStartTime,
         setEndTime: setEndTime,
         startTime: startTime,
         endTime: endTime,
-        selectedAssetsObjects: selectedAssetsObjects,
-        selectedAssetsCount: selectedAssetsCount
+        selectedResourcesObjects: selectedResourcesObjects,
+        selectedResourcesCount: selectedResourcesCount
       })));
-    } // Remind the user to select at least one record from the appropriate table and view
-    else {
-        return /*#__PURE__*/_react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/_react.default.createElement(BlockContainer, null, /*#__PURE__*/_react.default.createElement(_ui.Box, {
-          padding: 3,
-          backgroundColor: "lightGray1",
-          border: "thick",
-          borderRadius: "large",
-          maxWidth: "500px"
-        }, /*#__PURE__*/_react.default.createElement(_ui.Box, {
-          display: "flex",
-          alignItems: "center",
-          marginBottom: 3
-        }, /*#__PURE__*/_react.default.createElement(_ui.Icon, {
-          name: "warning",
-          fillColor: "orange",
-          marginRight: 3
-        }), /*#__PURE__*/_react.default.createElement(_ui.Heading, {
-          margin: 0,
-          flex: "1 1",
-          variant: "caps"
-        }, "No records selected")), /*#__PURE__*/_react.default.createElement(_ui.Text, {
-          size: "large",
-          textColor: "light"
-        }, "Select at least one record from the ", /*#__PURE__*/_react.default.createElement("span", {
-          style: {
-            fontWeight: 600
-          }
-        }, assetsTable.name), " table in the ", /*#__PURE__*/_react.default.createElement("span", {
-          style: {
-            fontWeight: 600
-          }
-        }, assetsView.name), " view. The existing schedule for the selected record(s) will determine the dates available to schedule a new reservation in the ", /*#__PURE__*/_react.default.createElement("span", {
-          style: {
-            fontWeight: 600
-          }
-        }, reservationsTable.name), " table."))));
-      }
+    }
 }
 
 function DateRangeSelector(props) {
-  // Create a record query of linked reservations for each selected asset
-  var reservationsQueries = props.selectedAssets.map(function (asset) {
-    return asset.selectLinkedRecordsFromCell(props.assetsReservationsLinkFieldId);
+  // Create a record query of linked reservations for each selected resource
+  var reservationsQueries = props.selectedResources.map(function (resource) {
+    return resource.selectLinkedRecordsFromCell(props.resourcesReservationsLinkFieldId);
   });
   (0, _ui.useLoadable)(reservationsQueries);
   (0, _ui.useWatchable)(reservationsQueries, ['records']); // Get the a single Set of all the linked reservations to remove duplicates
@@ -288,24 +365,24 @@ function ScheduleButton(props) {
   }
 
   function _CreateReservation() {
-    _CreateReservation = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee() {
+    _CreateReservation = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee3() {
       var _props$table$createRe;
 
       var newRecordId, query;
-      return regeneratorRuntime.wrap(function _callee$(_context) {
+      return regeneratorRuntime.wrap(function _callee3$(_context3) {
         while (1) {
-          switch (_context.prev = _context.next) {
+          switch (_context3.prev = _context3.next) {
             case 0:
-              _context.next = 2;
-              return props.table.createRecordAsync((_props$table$createRe = {}, _defineProperty(_props$table$createRe, props.linkField, props.selectedAssetsObjects), _defineProperty(_props$table$createRe, props.startField, props.startTime), _defineProperty(_props$table$createRe, props.endField, props.endTime), _props$table$createRe));
+              _context3.next = 2;
+              return props.table.createRecordAsync((_props$table$createRe = {}, _defineProperty(_props$table$createRe, props.linkField, props.selectedResourcesObjects), _defineProperty(_props$table$createRe, props.startField, props.startTime), _defineProperty(_props$table$createRe, props.endField, props.endTime), _props$table$createRe));
 
             case 2:
-              newRecordId = _context.sent;
-              _context.next = 5;
+              newRecordId = _context3.sent;
+              _context3.next = 5;
               return props.table.selectRecordsAsync();
 
             case 5:
-              query = _context.sent;
+              query = _context3.sent;
               (0, _ui.expandRecord)(query.getRecordById(newRecordId));
               query.unloadData();
               props.setStartTime('');
@@ -313,20 +390,33 @@ function ScheduleButton(props) {
 
             case 10:
             case "end":
-              return _context.stop();
+              return _context3.stop();
           }
         }
-      }, _callee);
+      }, _callee3);
     }));
     return _CreateReservation.apply(this, arguments);
   }
 
-  var checkPermissions = props.table.checkPermissionsForCreateRecord(); // Determines when if the button should be disabled (no dates have been selected or the user doesn't have permission to create a record in the Reservations table)
+  var checkPermissions = props.table ? props.table.checkPermissionsForCreateRecord() : {
+    hasPermission: false
+  }; // Determines when if the button should be disabled (no dates have been selected or the user doesn't have permission to create a record in the Reservations table)
 
-  var isDisabled = props.startTime == '' || checkPermissions.hasPermission == false ? true : false; // Controls what the action at the bottom says
+  var isDisabled = props.startTime == '' || checkPermissions.hasPermission == false || props.selectedResourcesCount == 0 ? true : false; // Controls what the action at the bottom says
 
-  var enabledText = props.selectedAssetsCount === 1 ? "Schedule this record" : "Schedule these " + props.selectedAssetsCount + " records";
-  var disabledText = checkPermissions.hasPermission == false ? checkPermissions.reasonDisplayString : "No dates selected";
+  var enabledText = props.selectedResourcesCount === 1 ? "Reserve this resource" : "Reserve these " + props.selectedResourcesCount + " resources";
+  var disabledText;
+
+  if (!props.initialSetupDone) {
+    disabledText = "Check block settings";
+  } else if (checkPermissions.hasPermission == false) {
+    disabledText = checkPermissions.reasonDisplayString;
+  } else if (props.selectedResourcesCount == 0) {
+    disabledText = "No resources selected";
+  } else {
+    disabledText = "No dates selected";
+  }
+
   var buttonText = isDisabled ? disabledText : enabledText;
   return /*#__PURE__*/_react.default.createElement(_ui.Button, {
     variant: "primary",
@@ -334,31 +424,32 @@ function ScheduleButton(props) {
     onClick: CreateReservation,
     icon: "day",
     disabled: isDisabled,
-    marginTop: 3
+    marginTop: 3,
+    alignSelf: "center"
   }, buttonText);
 }
 
 function SettingsMenu(props) {
-  var _React$createElement;
-
   var base = props.base;
-  var assetsTableId = props.GlobalConfigKeys.ASSETS_TABLE_ID;
-  var assetsTable = base.getTableByIdIfExists(props.globalConfig.get(assetsTableId));
-  var assetsReservationsLinkFieldId = props.GlobalConfigKeys.ASSETS_RESERVATIONS_LINK_FIELD_ID;
-  var assetsViewId = props.GlobalConfigKeys.ASSETS_VIEW_ID;
-  var reservationsTableId = props.GlobalConfigKeys.RESERVATIONS_TABLE_ID;
-  var reservationsTable = base.getTableByIdIfExists(props.globalConfig.get(reservationsTableId));
+  var resourcesTableId = props.GlobalConfigKeys.RESOURCES_TABLE_ID;
+  var resourcesTable = base.getTableByIdIfExists(props.globalConfig.get(resourcesTableId));
+  var resourcesViewId = props.GlobalConfigKeys.RESOURCES_VIEW_ID;
+  var resourcesReservationsLinkFieldId = props.GlobalConfigKeys.RESOURCES_RESERVATIONS_LINK_FIELD_ID;
+  var resourcesReservationsLinkField = resourcesTable ? resourcesTable.getFieldByIdIfExists(props.globalConfig.get(resourcesReservationsLinkFieldId)) : null;
+  var reservationsTableId = resourcesReservationsLinkField && resourcesReservationsLinkField.type == "multipleRecordLinks" ? resourcesReservationsLinkField.options.linkedTableId : null;
+  var reservationsTable = base.getTableByIdIfExists(reservationsTableId);
   var reservationsStartFieldId = props.GlobalConfigKeys.RESERVATIONS_START_FIELD_ID;
   var reservationsEndFieldId = props.GlobalConfigKeys.RESERVATIONS_END_FIELD_ID;
   var recordColor = props.GlobalConfigKeys.RECORD_COLOR;
   var allowedColors = [_ui.colors.BLUE, _ui.colors.CYAN, _ui.colors.TEAL, _ui.colors.GREEN, _ui.colors.YELLOW, _ui.colors.ORANGE, _ui.colors.RED, _ui.colors.PINK, _ui.colors.PURPLE, _ui.colors.GRAY];
+  !props.globalConfig.get(recordColor) && props.globalConfig.setAsync(recordColor, allowedColors[0]);
 
-  var resetAssetFields = function resetAssetFields() {
+  var resetResourceFields = function resetResourceFields() {
     var paths = [{
-      path: [assetsReservationsLinkFieldId],
+      path: [resourcesReservationsLinkFieldId],
       value: null
     }, {
-      path: [assetsViewId],
+      path: [resourcesViewId],
       value: null
     }];
     props.globalConfig.setPathsAsync(paths);
@@ -375,8 +466,10 @@ function SettingsMenu(props) {
     props.globalConfig.setPathsAsync(paths);
   };
 
+  var reservationsTableName = reservationsTable ? reservationsTable.name : "associated with the Link field";
+  var tableText = "This block will use the table " + reservationsTableName + " for reservation details";
   return /*#__PURE__*/_react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/_react.default.createElement(_ui.Heading, {
-    marginBottom: 4
+    marginBottom: 3
   }, "Scheduler settings"), /*#__PURE__*/_react.default.createElement(_ui.Box, {
     alignSelf: "stretch"
   }, /*#__PURE__*/_react.default.createElement(_ui.Box, {
@@ -387,49 +480,47 @@ function SettingsMenu(props) {
   }, /*#__PURE__*/_react.default.createElement(_ui.Box, {
     border: "thick",
     borderRadius: "large",
-    flex: "1 1",
+    flex: "1 1 200px",
     margin: 2,
     padding: 3
   }, /*#__PURE__*/_react.default.createElement(_ui.Heading, {
     size: "small"
-  }, "Assets"), /*#__PURE__*/_react.default.createElement(_ui.FormField, {
+  }, "Resources"), /*#__PURE__*/_react.default.createElement(_ui.FormField, {
     label: "Table",
     description: "The table for the records being reserved",
     marginY: 2
-  }, /*#__PURE__*/_react.default.createElement(_ui.TablePickerSynced, (_React$createElement = {
-    globalConfigKey: assetsTableId
-  }, _defineProperty(_React$createElement, "globalConfigKey", assetsTableId), _defineProperty(_React$createElement, "onChange", resetAssetFields), _React$createElement))), /*#__PURE__*/_react.default.createElement(_ui.FormField, {
+  }, /*#__PURE__*/_react.default.createElement(_ui.TablePickerSynced, {
+    globalConfigKey: resourcesTableId,
+    onChange: resetResourceFields
+  })), resourcesTable && /*#__PURE__*/_react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/_react.default.createElement(_ui.FormField, {
     label: "View",
     description: "Record selections must be made from this grid view",
     marginY: 2
   }, /*#__PURE__*/_react.default.createElement(_ui.ViewPickerSynced, {
-    globalConfigKey: assetsViewId,
-    table: assetsTable,
+    globalConfigKey: resourcesViewId,
+    table: resourcesTable,
     allowedTypes: [_models.ViewType.GRID]
   })), /*#__PURE__*/_react.default.createElement(_ui.FormField, {
     label: "Link field",
-    description: "The record link field which connects to the Reservations/Appointments table",
+    description: "The linked record field which connects to the Reservations table",
     marginY: 2
   }, /*#__PURE__*/_react.default.createElement(_ui.FieldPickerSynced, {
-    table: assetsTable,
-    globalConfigKey: assetsReservationsLinkFieldId,
+    table: resourcesTable,
+    globalConfigKey: resourcesReservationsLinkFieldId,
     allowedTypes: [_models.FieldType.MULTIPLE_RECORD_LINKS]
-  }))), /*#__PURE__*/_react.default.createElement(_ui.Box, {
+  })))), /*#__PURE__*/_react.default.createElement(_ui.Box, {
     border: "thick",
     borderRadius: "large",
-    flex: "1 1",
+    flex: "1 1 200px",
     margin: 2,
     padding: 3
   }, /*#__PURE__*/_react.default.createElement(_ui.Heading, {
     size: "small"
-  }, "Schedule"), /*#__PURE__*/_react.default.createElement(_ui.FormField, {
+  }, "Reservations"), reservationsTable && /*#__PURE__*/_react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/_react.default.createElement(_ui.FormField, {
     label: "Table",
-    description: "The table for the appointment/reservation details",
+    description: tableText,
     marginY: 2
-  }, /*#__PURE__*/_react.default.createElement(_ui.TablePickerSynced, {
-    globalConfigKey: reservationsTableId,
-    onChange: resetReservationsFields
-  })), /*#__PURE__*/_react.default.createElement(_ui.FormField, {
+  }), /*#__PURE__*/_react.default.createElement(_ui.FormField, {
     label: "Start field",
     marginY: 2
   }, /*#__PURE__*/_react.default.createElement(_ui.FieldPickerSynced, {
@@ -458,9 +549,10 @@ function SettingsMenu(props) {
   }, /*#__PURE__*/_react.default.createElement(_ui.ColorPaletteSynced, {
     globalConfigKey: recordColor,
     allowedColors: allowedColors
-  }))))), /*#__PURE__*/_react.default.createElement(_ui.Box, {
+  })))))), /*#__PURE__*/_react.default.createElement(_ui.Box, {
     display: "flex",
-    marginTop: 4
+    marginTop: 3,
+    alignSelf: "flex-end"
   }, /*#__PURE__*/_react.default.createElement(_ui.Button, {
     variant: "primary",
     size: "large",
@@ -478,17 +570,15 @@ function BlockContainer(_ref) {
     height: "100vh"
   }, /*#__PURE__*/_react.default.createElement(_ui.ViewportConstraint, {
     minSize: {
-      width: 600,
-      height: 600
+      width: 400,
+      height: 400
     }
   }, /*#__PURE__*/_react.default.createElement(_ui.Box, {
-    padding: 4,
+    padding: 3,
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
     width: "100%",
-    height: "100%"
+    height: "100vh"
   }, children)));
 }
 

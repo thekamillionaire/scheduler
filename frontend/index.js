@@ -12,11 +12,13 @@ import {
     colorUtils,
     Heading,
     Icon,
+    Input,
     ColorPaletteSynced,
     TablePickerSynced,
     ViewPickerSynced,
     FieldPickerSynced,
     expandRecord,
+    expandRecordPickerAsync,
     FormField,
     Button,
     Text,
@@ -41,44 +43,34 @@ function SchedulerBlock() {
     const globalConfig = useGlobalConfig();
     
     const GlobalConfigKeys = {
-        ASSETS_TABLE_ID: "assetsTableId",
-        ASSETS_VIEW_ID: "assetsViewId",
-        ASSETS_RESERVATIONS_LINK_FIELD_ID: "assetsReservationsLinkFieldId",
-        RESERVATIONS_TABLE_ID: "reservationsTableId",
+        RESOURCES_TABLE_ID: "resourcesTableId",
+        RESOURCES_VIEW_ID: "resourcesViewId",
+        RESOURCES_RESERVATIONS_LINK_FIELD_ID: "resourcesReservationsLinkFieldId",
         RESERVATIONS_START_FIELD_ID: "reservationsStartFieldId",
         RESERVATIONS_END_FIELD_ID: "reservationsEndFieldId",
         RECORD_COLOR: "recordColor"
     };
     
     useLoadable(cursor);
-    useWatchable(cursor, ['activeViewId']);
     
     // Global Config Keys (Settings)
-    const assetsTableId = globalConfig.get(GlobalConfigKeys.ASSETS_TABLE_ID)
-    const assetsViewId = globalConfig.get(GlobalConfigKeys.ASSETS_VIEW_ID)
-    const assetsReservationsLinkFieldId = globalConfig.get(GlobalConfigKeys.ASSETS_RESERVATIONS_LINK_FIELD_ID)
-    const reservationsTableId = globalConfig.get(GlobalConfigKeys.RESERVATIONS_TABLE_ID)
+    const resourcesTableId = globalConfig.get(GlobalConfigKeys.RESOURCES_TABLE_ID)
+    const resourcesViewId = globalConfig.get(GlobalConfigKeys.RESOURCES_VIEW_ID)
+    const resourcesReservationsLinkFieldId = globalConfig.get(GlobalConfigKeys.RESOURCES_RESERVATIONS_LINK_FIELD_ID)
     const reservationsStartFieldId = globalConfig.get(GlobalConfigKeys.RESERVATIONS_START_FIELD_ID)
     const reservationsEndFieldId = globalConfig.get(GlobalConfigKeys.RESERVATIONS_END_FIELD_ID)
     const recordColor = globalConfig.get(GlobalConfigKeys.RECORD_COLOR)
-    // Check if all settings options have values
-    const initialSetupDone = assetsTableId && assetsViewId && assetsReservationsLinkFieldId && reservationsTableId && reservationsStartFieldId && reservationsEndFieldId && recordColor ? true : false;
     
-    // Enable the settings button
-    const [isShowingSettings, setIsShowingSettings] = useState(!initialSetupDone);
-    useSettingsButton(function() {
-        initialSetupDone && setIsShowingSettings(!isShowingSettings);
-    });
-    
-    // Assets
-    const assetsTable = base.getTableByIdIfExists(assetsTableId)
-    const assetsView = assetsTable ? assetsTable.getViewByIdIfExists(assetsViewId) : null
-    const assets = useRecords(assetsView)
-    const assetsReservationsLinkField = assetsTable ? assetsTable.getFieldIfExists(assetsReservationsLinkFieldId) : null
+    // Resources
+    const resourcesTable = base.getTableByIdIfExists(resourcesTableId)
+    const resourcesView = resourcesTable ? resourcesTable.getViewByIdIfExists(resourcesViewId) : null
+    const resources = useRecords(resourcesView)
+    const resourcesReservationsLinkField = resourcesTable ? resourcesTable.getFieldIfExists(resourcesReservationsLinkFieldId) : null
     // Reservations
+    const reservationsTableId = resourcesReservationsLinkField && resourcesReservationsLinkField.type == "multipleRecordLinks" ? resourcesReservationsLinkField.options.linkedTableId : null
     const reservationsTable = base.getTableByIdIfExists(reservationsTableId)
     const reservations = useRecords(reservationsTable)
-    const reservationsAssetsLinkFieldId = assetsReservationsLinkField ? assetsReservationsLinkField.options.inverseLinkFieldId : null
+    const reservationsResourcesLinkFieldId = resourcesReservationsLinkField && resourcesReservationsLinkField.type == "multipleRecordLinks" ? resourcesReservationsLinkField.options.inverseLinkFieldId : null
     
     // This block is designed to work only if the start and end date fields are the same field type (either date or dateTime)
     const reservationsStartField = reservationsTable ? reservationsTable.getFieldIfExists(reservationsStartFieldId) : null
@@ -89,21 +81,59 @@ function SchedulerBlock() {
     // The dateMode (either date or dateTime will determine if the displayed calendar will have timeslots, or if it will only allow all-day events)
     const dateMode = dateModesMatch ? reservationsStartFieldMode : null
     
+    // Check if all settings options have values
+    const initialSetupDone = resourcesTable && resourcesView && resourcesReservationsLinkField && reservationsTable && reservationsStartField && reservationsEndField && recordColor ? true : false;
+    // Enable the settings button
+    const [isShowingSettings, setIsShowingSettings] = useState(!initialSetupDone);
+    useSettingsButton(function() {
+        setIsShowingSettings(!isShowingSettings);
+    });
+    
     // Set the initial start and end dates to empty
     const [startTime, setStartTime] = useState('')
     const [endTime, setEndTime] = useState('')
+    
+    // Allow users to select records from within the block
+    const [addedResourcesIds, setAddedResourcesIds] = useState([])
+    async function addToSelected() {
+        const recordA = await expandRecordPickerAsync(resources ? resources.filter(record => !selectedResourcesIdsSet.has(record.id)) : resources)
+        if(recordA) {
+            let current = [...addedResourcesIds, ...cursorResourcesIdsSet]
+            current.push(recordA.id)
+            setAddedResourcesIds(new Set(current))
+        }
+    }
+    
     // Get the record IDs of the currently selected records
     useWatchable(cursor, 'selectedRecordIds', () => {
         setStartTime('')
         setEndTime('')
+        setAddedResourcesIds([])
     });
-    // Get the currently selected record models from the Assets table
-    const selectedAssetsIdsSet = new Set(cursor.selectedRecordIds)
-    const selectedAssets = assets ? assets.filter(record => selectedAssetsIdsSet.has(record.id)) : []
-    // Get the selected asset records in a format to be passed into a multiple record links field
-    const selectedAssetsObjects = selectedAssets.map(asset => ({id: asset.id}))
+    
+    // Get the currently selected record models from the Resources table
+    let cursorResourcesIdsSet = new Set(cursor.selectedRecordIds)
+    
+    let selectedResourcesIdsSet = new Set([...addedResourcesIds].length ? [...addedResourcesIds] : [...cursorResourcesIdsSet])
+    
+    async function removeFromSelected() {
+        const recordA = await expandRecordPickerAsync(resources ? resources.filter(record => selectedResourcesIdsSet.has(record.id)) : resources)
+        if(recordA) {
+            setAddedResourcesIds(new Set([...selectedResourcesIdsSet].filter(id => id != recordA.id)))
+        }
+    }
+    
+    const unselectedResourceCount = resources ? resources.length - [...selectedResourcesIdsSet].length : 0
+    
+    const selectedResources = resources ? resources.filter(record => selectedResourcesIdsSet.has(record.id)) : []
+    // Get the selected resource records in a format to be passed into a multiple linked records field
+    const selectedResourcesObjects = selectedResources.map(resource => ({id: resource.id}))
     // Count the number of currently selected records
-    const selectedAssetsCount = selectedAssets.length
+    const selectedResourcesCount = selectedResources.length
+    
+    const headerValue = selectedResourcesCount > 0 
+        ? "[" + selectedResourcesCount + "]: " + selectedResources.map(x => x.name).join(", ") 
+        : "Click the + button or select records in the " + (resourcesView ? resourcesView.name : "appropriate") + " view"
     
     // Display the settings module if setup is required
     if (isShowingSettings || !dateModesMatch) {
@@ -124,13 +154,40 @@ function SchedulerBlock() {
     }
     
     // If the user is on the view chosen in the settings module, and if the user has selected at least one record, run the Scheduler
-    else if (cursor.activeViewId == assetsViewId && cursor.selectedRecordIds.length > 0) {
+    else {
         return (
             <React.Fragment>
                 <BlockContainer>
+                    <Box display="flex" paddingBottom={3} borderBottom="thick" marginBottom={3} alignItems="flex-end">
+                        <FormField label="Selected resource(s)" margin="0">
+                            <Input
+                                size="large"
+                                value={headerValue}
+                                disabled={true}
+                                className="truncateText"
+                                style={{opacity:0.75}}
+                            />
+                        </FormField>
+                        <Button
+                            onClick={addToSelected}
+                            marginLeft={2}
+                            icon="plus"
+                            variant="primary"
+                            aria-label="Add to selected resources"
+                            disabled={unselectedResourceCount > 0 ? false: true}
+                        />
+                        <Button
+                            onClick={removeFromSelected}
+                            marginLeft={2}
+                            icon="minus"
+                            variant="danger"
+                            aria-label="Remove from selected resources"
+                            disabled={selectedResourcesCount > 0 ? false: true}
+                        />
+                    </Box>
                     <DateRangeSelector
-                        selectedAssets={selectedAssets}
-                        assetsReservationsLinkFieldId={assetsReservationsLinkFieldId}
+                        selectedResources={selectedResources}
+                        resourcesReservationsLinkFieldId={resourcesReservationsLinkFieldId}
                         reservationsTable={reservationsTable}
                         reservationsStartFieldId={reservationsStartFieldId}
                         reservationsEndFieldId={reservationsEndFieldId}
@@ -142,34 +199,18 @@ function SchedulerBlock() {
                         recordColor={recordColor}
                     />
                     <ScheduleButton 
+                        initialSetupDone={initialSetupDone}
                         table={reservationsTable}
-                        linkField={reservationsAssetsLinkFieldId}
+                        linkField={reservationsResourcesLinkFieldId}
                         startField={reservationsStartFieldId}
                         endField={reservationsEndFieldId}
                         setStartTime={setStartTime}
                         setEndTime={setEndTime}
                         startTime={startTime}
                         endTime={endTime}
-                        selectedAssetsObjects={selectedAssetsObjects}
-                        selectedAssetsCount={selectedAssetsCount}
+                        selectedResourcesObjects={selectedResourcesObjects}
+                        selectedResourcesCount={selectedResourcesCount}
                     />
-                </BlockContainer>
-            </React.Fragment>
-        )
-    }
-    
-    // Remind the user to select at least one record from the appropriate table and view
-    else {
-        return (
-            <React.Fragment>
-                <BlockContainer>
-                    <Box padding={3} backgroundColor="lightGray1" border="thick" borderRadius="large" maxWidth="500px">
-                        <Box display="flex" alignItems="center" marginBottom={3}>                    
-                            <Icon name="warning" fillColor="orange" marginRight={3} />
-                            <Heading margin={0} flex="1 1" variant="caps">No records selected</Heading>
-                        </Box>
-                        <Text size="large" textColor="light">Select at least one record from the <span style={{fontWeight: 600}}>{assetsTable.name}</span> table in the <span style={{fontWeight: 600}}>{assetsView.name}</span> view. The existing schedule for the selected record(s) will determine the dates available to schedule a new reservation in the <span style={{fontWeight: 600}}>{reservationsTable.name}</span> table.</Text>
-                    </Box>
                 </BlockContainer>
             </React.Fragment>
         )
@@ -177,8 +218,8 @@ function SchedulerBlock() {
 }
 
 function DateRangeSelector(props) {
-    // Create a record query of linked reservations for each selected asset
-    const reservationsQueries = props.selectedAssets.map(asset => asset.selectLinkedRecordsFromCell(props.assetsReservationsLinkFieldId))
+    // Create a record query of linked reservations for each selected resource
+    const reservationsQueries = props.selectedResources.map(resource => resource.selectLinkedRecordsFromCell(props.resourcesReservationsLinkFieldId))
 
     useLoadable(reservationsQueries)
     useWatchable(reservationsQueries, ['records'])
@@ -252,7 +293,7 @@ function DateRangeSelector(props) {
 function ScheduleButton(props) {
     async function CreateReservation() {
         const newRecordId = await props.table.createRecordAsync({
-            [props.linkField]: props.selectedAssetsObjects,
+            [props.linkField]: props.selectedResourcesObjects,
             [props.startField]: props.startTime,
             [props.endField]: props.endTime
         });
@@ -263,30 +304,42 @@ function ScheduleButton(props) {
         props.setEndTime('')
     }
     
-    const checkPermissions = props.table.checkPermissionsForCreateRecord()
+    const checkPermissions = props.table ? props.table.checkPermissionsForCreateRecord() : {hasPermission: false}
     // Determines when if the button should be disabled (no dates have been selected or the user doesn't have permission to create a record in the Reservations table)
-    const isDisabled = props.startTime =='' || checkPermissions.hasPermission == false ? true : false
+    const isDisabled = props.startTime =='' || checkPermissions.hasPermission == false || props.selectedResourcesCount == 0 ? true : false
     // Controls what the action at the bottom says
-    const enabledText = props.selectedAssetsCount === 1 ? "Schedule this record" : "Schedule these " + props.selectedAssetsCount + " records"
-    const disabledText = checkPermissions.hasPermission == false ? checkPermissions.reasonDisplayString : "No dates selected"
+    const enabledText = props.selectedResourcesCount === 1 ? "Reserve this resource" : "Reserve these " + props.selectedResourcesCount + " resources"
+    
+    let disabledText
+    
+    if (!props.initialSetupDone) {
+        disabledText = "Check block settings"
+    } else if (checkPermissions.hasPermission == false) {
+        disabledText = checkPermissions.reasonDisplayString
+    } else if (props.selectedResourcesCount == 0) {
+        disabledText = "No resources selected"
+    } else {
+        disabledText = "No dates selected"
+    }
     
     const buttonText = isDisabled ? disabledText : enabledText
     
     return (
-        <Button variant="primary" className="schedule-button" onClick={CreateReservation} icon="day" disabled={isDisabled} marginTop={3}>{buttonText}</Button>
+        <Button variant="primary" className="schedule-button" onClick={CreateReservation} icon="day" disabled={isDisabled} marginTop={3} alignSelf="center">{buttonText}</Button>
     )
 }
 
 function SettingsMenu(props) {
     const base = props.base
     
-    const assetsTableId = props.GlobalConfigKeys.ASSETS_TABLE_ID
-    const assetsTable = base.getTableByIdIfExists(props.globalConfig.get(assetsTableId))
-    const assetsReservationsLinkFieldId = props.GlobalConfigKeys.ASSETS_RESERVATIONS_LINK_FIELD_ID
-    const assetsViewId = props.GlobalConfigKeys.ASSETS_VIEW_ID
+    const resourcesTableId = props.GlobalConfigKeys.RESOURCES_TABLE_ID
+    const resourcesTable = base.getTableByIdIfExists(props.globalConfig.get(resourcesTableId))
+    const resourcesViewId = props.GlobalConfigKeys.RESOURCES_VIEW_ID
+    const resourcesReservationsLinkFieldId = props.GlobalConfigKeys.RESOURCES_RESERVATIONS_LINK_FIELD_ID
+    const resourcesReservationsLinkField = resourcesTable ? resourcesTable.getFieldByIdIfExists(props.globalConfig.get(resourcesReservationsLinkFieldId)) : null
     
-    const reservationsTableId = props.GlobalConfigKeys.RESERVATIONS_TABLE_ID
-    const reservationsTable = base.getTableByIdIfExists(props.globalConfig.get(reservationsTableId))
+    const reservationsTableId = resourcesReservationsLinkField && resourcesReservationsLinkField.type == "multipleRecordLinks" ? resourcesReservationsLinkField.options.linkedTableId : null
+    const reservationsTable = base.getTableByIdIfExists(reservationsTableId)
     const reservationsStartFieldId = props.GlobalConfigKeys.RESERVATIONS_START_FIELD_ID
     const reservationsEndFieldId = props.GlobalConfigKeys.RESERVATIONS_END_FIELD_ID
     const recordColor = props.GlobalConfigKeys.RECORD_COLOR
@@ -304,11 +357,13 @@ function SettingsMenu(props) {
         colors.GRAY,
     ];
     
+    !props.globalConfig.get(recordColor) && props.globalConfig.setAsync(recordColor, allowedColors[0])
     
-    const resetAssetFields = () => {
+    
+    const resetResourceFields = () => {
         const paths = [
-            {path: [assetsReservationsLinkFieldId], value: null},
-            {path: [assetsViewId], value: null}
+            {path: [resourcesReservationsLinkFieldId], value: null},
+            {path: [resourcesViewId], value: null}
         ]
         props.globalConfig.setPathsAsync(paths);
     }
@@ -319,78 +374,81 @@ function SettingsMenu(props) {
         ]
         props.globalConfig.setPathsAsync(paths);
     }
+    const reservationsTableName = reservationsTable ? reservationsTable.name : "associated with the Link field"
+    const tableText = "This block will use the table " + reservationsTableName + " for reservation details"
     
     return(
         <React.Fragment>
-            <Heading marginBottom={4}>Scheduler settings</Heading>
+            <Heading marginBottom={3}>Scheduler settings</Heading>
             <Box alignSelf="stretch">
                 <Box margin={-2}  display="flex" flexDirection="row" flexWrap="wrap">
-                    <Box border="thick" borderRadius="large" flex="1 1" margin={2} padding={3}>
-                        <Heading size="small">Assets</Heading>
+                    <Box border="thick" borderRadius="large" flex="1 1 200px" margin={2} padding={3}>
+                        <Heading size="small">Resources</Heading>
                         <FormField label="Table" description="The table for the records being reserved" marginY={2}>
                             <TablePickerSynced 
-                                globalConfigKey={assetsTableId}
-                                onChange={resetAssetFields}
+                                globalConfigKey={resourcesTableId}
+                                onChange={resetResourceFields}
                             />
                         </FormField>
-                        <FormField label="View" description="Record selections must be made from this grid view" marginY={2}>
-                            <ViewPickerSynced 
-                                globalConfigKey={assetsViewId} 
-                                table={assetsTable}
-                                allowedTypes={[ViewType.GRID]}
-                            />
-                        </FormField>
-                        <FormField label="Link field" description="The record link field which connects to the Reservations/Appointments table" marginY={2}>
-                            <FieldPickerSynced
-                                table={assetsTable}
-                                globalConfigKey={assetsReservationsLinkFieldId}
-                                allowedTypes={[
-                                    FieldType.MULTIPLE_RECORD_LINKS
-                                ]}
-                            />
-                        </FormField>
+                        {resourcesTable && (<React.Fragment>
+                            <FormField label="View" description="Record selections must be made from this grid view" marginY={2}>
+                                <ViewPickerSynced 
+                                    globalConfigKey={resourcesViewId} 
+                                    table={resourcesTable}
+                                    allowedTypes={[ViewType.GRID]}
+                                />
+                            </FormField>
+                            <FormField label="Link field" description="The linked record field which connects to the Reservations table" marginY={2}>
+                                <FieldPickerSynced
+                                    table={resourcesTable}
+                                    globalConfigKey={resourcesReservationsLinkFieldId}
+                                    allowedTypes={[
+                                        FieldType.MULTIPLE_RECORD_LINKS
+                                    ]}
+                                />
+                            </FormField>
+                        </React.Fragment>)}
+                        
                     </Box>
-                    <Box border="thick" borderRadius="large" flex="1 1" margin={2} padding={3}>
-                        <Heading size="small">Schedule</Heading>
-                        <FormField label="Table" description="The table for the appointment/reservation details" marginY={2}>
-                            <TablePickerSynced
-                                globalConfigKey={reservationsTableId}
-                                onChange={resetReservationsFields} 
-                            />
-                        </FormField>
-                        <FormField label="Start field" marginY={2}>
-                            <FieldPickerSynced
-                                table={reservationsTable}
-                                globalConfigKey={reservationsStartFieldId}
-                                allowedTypes={[
-                                    FieldType.DATE,
-                                    FieldType.DATE_TIME
-                                ]}
-                            />
-                        </FormField>
-                        <FormField label="End field" marginY={2}>
-                            <FieldPickerSynced
-                                table={reservationsTable}
-                                globalConfigKey={reservationsEndFieldId}
-                                allowedTypes={[
-                                    FieldType.DATE,
-                                    FieldType.DATE_TIME
-                                ]}
-                            />
-                        </FormField>
-                        {!props.dateModesMatch &&
-                            <Box display="flex" alignItems="center" marginY={2}>                    
-                                <Icon name="warning" flex="1 1 30px" fillColor="orange" marginRight={2} />
-                                <Text>The start and end date fields should be of the same type (either dates or dateTimes)</Text>
-                            </Box>
-                        }
-                        <FormField label="Record color" marginY={2}>
-                            <ColorPaletteSynced globalConfigKey={recordColor} allowedColors={allowedColors} />
-                        </FormField>
+                    <Box border="thick" borderRadius="large" flex="1 1 200px" margin={2} padding={3}>
+                        <Heading size="small">Reservations</Heading>
+                        {reservationsTable && (<React.Fragment>
+                            <FormField label="Table" description={tableText} marginY={2}>
+                            </FormField>
+                            <FormField label="Start field" marginY={2}>
+                                <FieldPickerSynced
+                                    table={reservationsTable}
+                                    globalConfigKey={reservationsStartFieldId}
+                                    allowedTypes={[
+                                        FieldType.DATE,
+                                        FieldType.DATE_TIME
+                                    ]}
+                                />
+                            </FormField>
+                            <FormField label="End field" marginY={2}>
+                                <FieldPickerSynced
+                                    table={reservationsTable}
+                                    globalConfigKey={reservationsEndFieldId}
+                                    allowedTypes={[
+                                        FieldType.DATE,
+                                        FieldType.DATE_TIME
+                                    ]}
+                                />
+                            </FormField>
+                            {!props.dateModesMatch &&
+                                <Box display="flex" alignItems="center" marginY={2}>                    
+                                    <Icon name="warning" flex="1 1 30px" fillColor="orange" marginRight={2} />
+                                    <Text>The start and end date fields should be of the same type (either dates or dateTimes)</Text>
+                                </Box>
+                            }
+                            <FormField label="Record color" marginY={2}>
+                                <ColorPaletteSynced globalConfigKey={recordColor} allowedColors={allowedColors} />
+                            </FormField>
+                        </React.Fragment>)}
                     </Box>
                 </Box>
             </Box>
-            <Box display="flex" marginTop={4}>
+            <Box display="flex" marginTop={3} alignSelf="flex-end">
                 <Button
                     variant="primary"
                     size="large"
@@ -408,8 +466,8 @@ function SettingsMenu(props) {
 function BlockContainer({children}) {
     return (
         <div id="Scheduler-Block" width="100%" height="100vh">
-            <ViewportConstraint minSize={{width: 600, height: 600}}>
-                <Box padding={4} display="flex" flexDirection="column" alignItems="center" justifyContent="center" width="100%" height="100%">
+            <ViewportConstraint minSize={{width: 400, height: 400}}>
+                <Box padding={3} display="flex" flexDirection="column" width="100%" height="100vh">
                     {children}
                 </Box>
             </ViewportConstraint>

@@ -3,20 +3,20 @@ import {loadCSSFromString} from '@airtable/blocks/ui';
 const custom = `
 #RenderCalendar,
 .calendar-container {
-    min-height: 400px;
-    height: calc(100vh - 115px);
+    min-height: 200px;
+    flex: 1 1 400px;
 }
 
 .fc-event-container {
     cursor: pointer
 }
 
-.fc-content {
+.fc-content,
+.truncateText {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap
 }
-
 `
 
 const fullCalendar = `
